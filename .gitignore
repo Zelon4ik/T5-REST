@@ -1,0 +1,18 @@
+# Binaries
+bin/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Node modules
+node_modules/
+package-lock.json
+
+# Environment
+.env
+
+# OS Files
+Thumbs.db
+.DS_Store

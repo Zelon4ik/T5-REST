@@ -1,0 +1,590 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "description": "RESTful вебсервіс обліку технічних інцидентів та аварій на базі Gin, GORM та PostgreSQL.",
+        "title": "Incident Tracker API",
+        "termsOfService": "http://swagger.io/terms/",
+        "contact": {
+            "name": "Служба технічної підтримки",
+            "email": "engineer@company.internal"
+        },
+        "license": {
+            "name": "MIT",
+            "url": "https://opensource.org/licenses/MIT"
+        },
+        "version": "1.0"
+    },
+    "host": "localhost:8080",
+    "basePath": "/api/v1",
+    "paths": {
+        "/auth/login": {
+            "post": {
+                "description": "Перевіряє пару email/пароль за допомогою bcrypt та генерує токен",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Вхід інженера та отримання JWT токена",
+                "parameters": [
+                    {
+                        "description": "Облікові дані",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.LoginDTO"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Токен успішно згенеровано",
+                        "schema": {
+                            "$ref": "#/definitions/models.AuthResponseDTO"
+                        }
+                    },
+                    "400": {
+                        "description": "Помилка валідації DTO",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Невірний email або пароль",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Внутрішня помилка сервера",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/register": {
+            "post": {
+                "description": "Створює обліковий запис із захищеним гешуванням пароля (bcrypt)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Auth"
+                ],
+                "summary": "Реєстрація нового інженера",
+                "parameters": [
+                    {
+                        "description": "Дані реєстрації (email та password \u003e= 6 символів)",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.RegisterDTO"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Користувача успішно створено",
+                        "schema": {
+                            "$ref": "#/definitions/models.UserResponseDTO"
+                        }
+                    },
+                    "400": {
+                        "description": "Помилка валідації DTO",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "409": {
+                        "description": "Користувач із таким email вже існує",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Внутрішня помилка сервера",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/incidents": {
+            "get": {
+                "description": "Повертає масив інцидентів із бази даних PostgreSQL (публічний доступ)",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Incidents"
+                ],
+                "summary": "Отримати список усіх інцидентів",
+                "responses": {
+                    "200": {
+                        "description": "Список інцидентів",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/models.Incident"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Помилка сервера",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Створює запис про інцидент з обов'язковою прив'язкою до авторизованого користувача",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Incidents"
+                ],
+                "summary": "Створити новий інцидент",
+                "parameters": [
+                    {
+                        "description": "Дані для створення інциденту",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.CreateIncidentDTO"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Інцидент успішно зареєстровано",
+                        "schema": {
+                            "$ref": "#/definitions/models.Incident"
+                        }
+                    },
+                    "400": {
+                        "description": "Помилка валідації полів DTO",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Неавторизований доступ",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Внутрішня помилка сервера",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/incidents/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Шукає інцидент у PostgreSQL за значенням первинного ключа",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Incidents"
+                ],
+                "summary": "Отримати інцидент за ID",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID інциденту",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Знайдений інцидент",
+                        "schema": {
+                            "$ref": "#/definitions/models.Incident"
+                        }
+                    },
+                    "401": {
+                        "description": "Неавторизований доступ",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Інцидент не знайдено",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Помилка сервера",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Видаляє запис про інцидент з таблиці бази даних",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Incidents"
+                ],
+                "summary": "Видалити інцидент за ID",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID інциденту",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "Інцидент успішно видалено (тіло відповіді порожнє)"
+                    },
+                    "401": {
+                        "description": "Неавторизований доступ",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Інцидент не знайдено",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Помилка видалення",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/incidents/{id}/status": {
+            "patch": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "Змінює поточний статус інциденту (open, in_progress, resolved, closed)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Incidents"
+                ],
+                "summary": "Оновити статус інциденту",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "ID інциденту",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Новий статус інциденту",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.UpdateStatusDTO"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Оновлений інцидент",
+                        "schema": {
+                            "$ref": "#/definitions/models.Incident"
+                        }
+                    },
+                    "400": {
+                        "description": "Невалідний статус",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Неавторизований доступ",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Інцидент не знайдено",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Помилка оновлення",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "models.AuthResponseDTO": {
+            "type": "object",
+            "properties": {
+                "token": {
+                    "type": "string",
+                    "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                }
+            }
+        },
+        "models.CreateIncidentDTO": {
+            "type": "object",
+            "required": [
+                "description",
+                "priority",
+                "title"
+            ],
+            "properties": {
+                "description": {
+                    "type": "string",
+                    "example": "Температура ядра процесора досягла 85C"
+                },
+                "priority": {
+                    "type": "string",
+                    "enum": [
+                        "low",
+                        "medium",
+                        "high",
+                        "critical"
+                    ],
+                    "example": "critical"
+                },
+                "title": {
+                    "type": "string",
+                    "maxLength": 100,
+                    "minLength": 3,
+                    "example": "Перегрів шлюзу Gateway-01"
+                }
+            }
+        },
+        "models.Incident": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string",
+                    "example": "2026-09-08T14:10:25Z"
+                },
+                "description": {
+                    "type": "string",
+                    "example": "Температура ядра процесора досягла 85C"
+                },
+                "id": {
+                    "type": "integer",
+                    "example": 1
+                },
+                "priority": {
+                    "type": "string",
+                    "example": "critical"
+                },
+                "status": {
+                    "type": "string",
+                    "example": "open"
+                },
+                "title": {
+                    "type": "string",
+                    "example": "Перегрів шлюзу Gateway-01"
+                },
+                "user_id": {
+                    "type": "integer",
+                    "example": 1
+                }
+            }
+        },
+        "models.LoginDTO": {
+            "type": "object",
+            "required": [
+                "email",
+                "password"
+            ],
+            "properties": {
+                "email": {
+                    "type": "string",
+                    "example": "engineer@company.internal"
+                },
+                "password": {
+                    "type": "string",
+                    "example": "SuperSecretPassword123"
+                }
+            }
+        },
+        "models.RegisterDTO": {
+            "type": "object",
+            "required": [
+                "email",
+                "password"
+            ],
+            "properties": {
+                "email": {
+                    "type": "string",
+                    "example": "engineer@company.internal"
+                },
+                "password": {
+                    "type": "string",
+                    "minLength": 6,
+                    "example": "SuperSecretPassword123"
+                }
+            }
+        },
+        "models.UpdateStatusDTO": {
+            "type": "object",
+            "required": [
+                "status"
+            ],
+            "properties": {
+                "status": {
+                    "type": "string",
+                    "enum": [
+                        "open",
+                        "in_progress",
+                        "resolved",
+                        "closed"
+                    ],
+                    "example": "in_progress"
+                }
+            }
+        },
+        "models.UserResponseDTO": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string",
+                    "example": "2026-09-08T14:10:00Z"
+                },
+                "email": {
+                    "type": "string",
+                    "example": "engineer@company.internal"
+                },
+                "id": {
+                    "type": "integer",
+                    "example": 1
+                }
+            }
+        }
+    },
+    "securityDefinitions": {
+        "BearerAuth": {
+            "description": "Введіть токен у форматі: Bearer \u003cJWT_TOKEN\u003e",
+            "type": "apiKey",
+            "name": "Authorization",
+            "in": "header"
+        }
+    }
+}

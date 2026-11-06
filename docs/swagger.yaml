@@ -1,0 +1,398 @@
+basePath: /api/v1
+definitions:
+  models.AuthResponseDTO:
+    properties:
+      token:
+        example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        type: string
+    type: object
+  models.CreateIncidentDTO:
+    properties:
+      description:
+        example: Температура ядра процесора досягла 85C
+        type: string
+      priority:
+        enum:
+        - low
+        - medium
+        - high
+        - critical
+        example: critical
+        type: string
+      title:
+        example: Перегрів шлюзу Gateway-01
+        maxLength: 100
+        minLength: 3
+        type: string
+    required:
+    - description
+    - priority
+    - title
+    type: object
+  models.Incident:
+    properties:
+      created_at:
+        example: "2026-09-08T14:10:25Z"
+        type: string
+      description:
+        example: Температура ядра процесора досягла 85C
+        type: string
+      id:
+        example: 1
+        type: integer
+      priority:
+        example: critical
+        type: string
+      status:
+        example: open
+        type: string
+      title:
+        example: Перегрів шлюзу Gateway-01
+        type: string
+      user_id:
+        example: 1
+        type: integer
+    type: object
+  models.LoginDTO:
+    properties:
+      email:
+        example: engineer@company.internal
+        type: string
+      password:
+        example: SuperSecretPassword123
+        type: string
+    required:
+    - email
+    - password
+    type: object
+  models.RegisterDTO:
+    properties:
+      email:
+        example: engineer@company.internal
+        type: string
+      password:
+        example: SuperSecretPassword123
+        minLength: 6
+        type: string
+    required:
+    - email
+    - password
+    type: object
+  models.UpdateStatusDTO:
+    properties:
+      status:
+        enum:
+        - open
+        - in_progress
+        - resolved
+        - closed
+        example: in_progress
+        type: string
+    required:
+    - status
+    type: object
+  models.UserResponseDTO:
+    properties:
+      created_at:
+        example: "2026-09-08T14:10:00Z"
+        type: string
+      email:
+        example: engineer@company.internal
+        type: string
+      id:
+        example: 1
+        type: integer
+    type: object
+host: localhost:8080
+info:
+  contact:
+    email: engineer@company.internal
+    name: Служба технічної підтримки
+  description: RESTful вебсервіс обліку технічних інцидентів та аварій на базі Gin,
+    GORM та PostgreSQL.
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+  termsOfService: http://swagger.io/terms/
+  title: Incident Tracker API
+  version: "1.0"
+paths:
+  /auth/login:
+    post:
+      consumes:
+      - application/json
+      description: Перевіряє пару email/пароль за допомогою bcrypt та генерує токен
+      parameters:
+      - description: Облікові дані
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.LoginDTO'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Токен успішно згенеровано
+          schema:
+            $ref: '#/definitions/models.AuthResponseDTO'
+        "400":
+          description: Помилка валідації DTO
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Невірний email або пароль
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Внутрішня помилка сервера
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Вхід інженера та отримання JWT токена
+      tags:
+      - Auth
+  /auth/register:
+    post:
+      consumes:
+      - application/json
+      description: Створює обліковий запис із захищеним гешуванням пароля (bcrypt)
+      parameters:
+      - description: Дані реєстрації (email та password >= 6 символів)
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.RegisterDTO'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Користувача успішно створено
+          schema:
+            $ref: '#/definitions/models.UserResponseDTO'
+        "400":
+          description: Помилка валідації DTO
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "409":
+          description: Користувач із таким email вже існує
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Внутрішня помилка сервера
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Реєстрація нового інженера
+      tags:
+      - Auth
+  /incidents:
+    get:
+      description: Повертає масив інцидентів із бази даних PostgreSQL (публічний доступ)
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Список інцидентів
+          schema:
+            items:
+              $ref: '#/definitions/models.Incident'
+            type: array
+        "500":
+          description: Помилка сервера
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Отримати список усіх інцидентів
+      tags:
+      - Incidents
+    post:
+      consumes:
+      - application/json
+      description: Створює запис про інцидент з обов'язковою прив'язкою до авторизованого
+        користувача
+      parameters:
+      - description: Дані для створення інциденту
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.CreateIncidentDTO'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Інцидент успішно зареєстровано
+          schema:
+            $ref: '#/definitions/models.Incident'
+        "400":
+          description: Помилка валідації полів DTO
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Неавторизований доступ
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Внутрішня помилка сервера
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Створити новий інцидент
+      tags:
+      - Incidents
+  /incidents/{id}:
+    delete:
+      description: Видаляє запис про інцидент з таблиці бази даних
+      parameters:
+      - description: ID інциденту
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: Інцидент успішно видалено (тіло відповіді порожнє)
+        "401":
+          description: Неавторизований доступ
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Інцидент не знайдено
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Помилка видалення
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Видалити інцидент за ID
+      tags:
+      - Incidents
+    get:
+      description: Шукає інцидент у PostgreSQL за значенням первинного ключа
+      parameters:
+      - description: ID інциденту
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Знайдений інцидент
+          schema:
+            $ref: '#/definitions/models.Incident'
+        "401":
+          description: Неавторизований доступ
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Інцидент не знайдено
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Помилка сервера
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Отримати інцидент за ID
+      tags:
+      - Incidents
+  /incidents/{id}/status:
+    patch:
+      consumes:
+      - application/json
+      description: Змінює поточний статус інциденту (open, in_progress, resolved,
+        closed)
+      parameters:
+      - description: ID інциденту
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Новий статус інциденту
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/models.UpdateStatusDTO'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Оновлений інцидент
+          schema:
+            $ref: '#/definitions/models.Incident'
+        "400":
+          description: Невалідний статус
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Неавторизований доступ
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Інцидент не знайдено
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Помилка оновлення
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Оновити статус інциденту
+      tags:
+      - Incidents
+securityDefinitions:
+  BearerAuth:
+    description: 'Введіть токен у форматі: Bearer <JWT_TOKEN>'
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"
